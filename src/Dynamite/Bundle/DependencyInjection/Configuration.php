@@ -29,7 +29,6 @@ class Configuration implements ConfigurationInterface
                             ->children()
                                 ->scalarNode('connection')->defaultValue('Aws\DynamoDb\DynamoDbClient')->end()
                                 ->scalarNode('table_name')->isRequired()->end()
-                                ->booleanNode('default')->isRequired()->end()
                                 ->scalarNode('partition_key_name')->isRequired()->defaultValue('pk')->end()
                                 ->scalarNode('sort_key_name')->isRequired()->defaultValue('sk')->end()
                                 ->arrayNode('managed_items')
