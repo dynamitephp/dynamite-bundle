@@ -21,7 +21,7 @@ somewhere in your `services.yaml`:
 
 ```yaml
 Your\Repository\Name\Goes\here:
-  factory: ['@dynamite.registry', getItemRepository]
+  factory: ['@dynamite.registry', getItemRepositoryFor]
   arguments:
     - Your\Entity\Name\Goes\Here
 ```

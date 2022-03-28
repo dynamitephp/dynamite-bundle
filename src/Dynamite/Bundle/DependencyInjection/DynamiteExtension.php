@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Dynamite\Bundle\DependencyInjection;
 
+use Aws\DynamoDb\Marshaler;
 use Dynamite\ItemManager;
 use Dynamite\ItemManagerRegistry;
+use Dynamite\ItemSerializer;
 use Dynamite\Mapping\ItemMappingReader;
 use Dynamite\TableSchema;
 use Monolog\Logger;
@@ -35,10 +37,19 @@ class DynamiteExtension extends Extension
         $registryDefinition = new Definition(ItemManagerRegistry::class);
 
         $annotationReaderRef = new Reference($config['annotation_reader_id']);
+
         $itemMappingReaderDef = new Definition(ItemMappingReader::class);
         $itemMappingReaderDef->setArgument('$reader', $annotationReaderRef);
-
         $container->setDefinition(self::MAPPING_READER_ID, $itemMappingReaderDef);
+
+        $itemSerializerDef = new Definition(ItemSerializer::class);
+        $container->setDefinition(ItemSerializer::class, $itemSerializerDef);
+
+        $marshalerDef = new Definition(Marshaler::class);
+        $container->setDefinition(Marshaler::class, $marshalerDef);
+
+
+
 
         foreach ($config['tables'] as $instanceName => $instanceConfiguration) {
             /**
@@ -47,7 +58,7 @@ class DynamiteExtension extends Extension
             $instanceLogger = new Definition(Logger::class);
             $instanceLogger->setArgument('$name', sprintf(self::LOGGER_NAME, $instanceName));
             $instanceLogger->setArgument('$handlers', [new Reference('monolog.handler.main')]);
-            $instanceLogger->setPrivate(true);
+            $instanceLogger->setPublic(false);
             $container->setDefinition(sprintf('dynamite.logger.%s', $instanceName), $instanceLogger);
 
             $tableConfigurationId = sprintf('dynamite.table_configuration.%s', $instanceName);
@@ -56,18 +67,22 @@ class DynamiteExtension extends Extension
             $tableConfigurationDefinition->setArgument('$partitionKeyName', $instanceConfiguration['partition_key_name']);
             $tableConfigurationDefinition->setArgument('$sortKeyName', $instanceConfiguration['sort_key_name']);
             $tableConfigurationDefinition->setArgument('$indexes', $instanceConfiguration['indexes']);
-            $tableConfigurationDefinition->setPrivate(true);
+            $tableConfigurationDefinition->setPublic(false);
             $container->setDefinition($tableConfigurationId, $tableConfigurationDefinition);
 
             $instanceDefinition = new Definition(ItemManager::class);
-            $instanceDefinition->setArgument('$client', new Reference($instanceConfiguration['connection']));
-            $instanceDefinition->setArgument('$logger', new Reference(sprintf('dynamite.logger.%s', $instanceName)));
-            $instanceDefinition->setArgument('$mappingReader', new Reference(self::MAPPING_READER_ID));
-            $instanceDefinition->setArgument('$managedObjects', $instanceConfiguration['managed_items']);
-            $instanceDefinition->setPublic(true);
-            $instanceDefinition->setArgument('$tableSchema', new Reference($tableConfigurationId));
+            $instanceDefinition->setBindings([
+                '$client' => new Reference($instanceConfiguration['connection']),
+                '$tableSchema' => new Reference($tableConfigurationId),
+                '$managedObjects' => $instanceConfiguration['managed_items'],
+                '$mappingReader' => new Reference(self::MAPPING_READER_ID),
+                '$itemSerializer' => new Reference(ItemSerializer::class),
+                '$marshaler' => new Reference(Marshaler::class),
+                '$logger' => new Reference(sprintf('dynamite.logger.%s', $instanceName))
+            ]);
 
-            $registryDefinition->addMethodCall('addManagedTable', [$instanceName, $instanceDefinition]);
+            $instanceDefinition->setPublic(true);
+            $registryDefinition->addMethodCall('addManagedTable', [$instanceDefinition]);
         }
 
         $container->setDefinition('dynamite.registry', $registryDefinition);
