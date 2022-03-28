@@ -14,3 +14,14 @@ dynamite:
           pk: gsi1pk
           sk: gsi1sk
 ```
+
+Defining a repository as a service:
+
+somewhere in your `services.yaml`:
+
+```yaml
+Your\Repository\Name\Goes\here:
+  factory: ['@dynamite.registry', getItemRepository]
+  arguments:
+    - Your\Entity\Name\Goes\Here
+```
