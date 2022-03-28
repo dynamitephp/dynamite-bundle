@@ -7,6 +7,7 @@ dynamite:
       table_name: '%ddb_table_name%'
       partition_key_name: pk
       sort_key_name: sk
+      object_type_attr: _ot
       managed_items:
         - Your\Entity\Name\Goes\Here
       indexes:

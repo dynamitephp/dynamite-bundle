@@ -9,6 +9,11 @@ use Dynamite\ItemManager;
 use Dynamite\ItemManagerRegistry;
 use Dynamite\ItemSerializer;
 use Dynamite\Mapping\ItemMappingReader;
+use Dynamite\PrimaryKey\Filter\LowercaseFilter;
+use Dynamite\PrimaryKey\Filter\Md5Filter;
+use Dynamite\PrimaryKey\Filter\UppercaseFilter;
+use Dynamite\PrimaryKey\Filter\UppercaseFirstFilter;
+use Dynamite\PrimaryKey\KeyFormatResolver;
 use Dynamite\TableSchema;
 use Monolog\Logger;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -31,6 +36,13 @@ class DynamiteExtension extends Extension
      */
     public function load(array $configs, ContainerBuilder $container)
     {
+        $filters = [
+            'md5' => Md5Filter::class,
+            'upper' => UppercaseFilter::class,
+            'lower' => LowercaseFilter::class,
+            'uccase' => UppercaseFirstFilter::class
+        ];
+
         $configObject = new Configuration();
         $config = $this->processConfiguration($configObject, $configs);
 
@@ -48,8 +60,14 @@ class DynamiteExtension extends Extension
         $marshalerDef = new Definition(Marshaler::class);
         $container->setDefinition(Marshaler::class, $marshalerDef);
 
+        $formatResolverDef = new Definition(KeyFormatResolver::class);
+        $container->setDefinition(KeyFormatResolver::class, $formatResolverDef);
 
-
+        foreach ($filters as $name => $filterFqcn) {
+            $filterDef = new Definition($filterFqcn);
+            $container->setDefinition($filterFqcn, $registryDefinition);
+            $formatResolverDef->addMethodCall('addFilter', [$name, $filterDef]);
+        }
 
         foreach ($config['tables'] as $instanceName => $instanceConfiguration) {
             /**
@@ -77,6 +95,7 @@ class DynamiteExtension extends Extension
                 '$managedObjects' => $instanceConfiguration['managed_items'],
                 '$mappingReader' => new Reference(self::MAPPING_READER_ID),
                 '$itemSerializer' => new Reference(ItemSerializer::class),
+                '$keyFormatResolver' => new Reference(KeyFormatResolver::class),
                 '$marshaler' => new Reference(Marshaler::class),
                 '$logger' => new Reference(sprintf('dynamite.logger.%s', $instanceName))
             ]);

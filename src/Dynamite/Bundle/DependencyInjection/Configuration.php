@@ -31,6 +31,7 @@ class Configuration implements ConfigurationInterface
                                 ->scalarNode('table_name')->isRequired()->end()
                                 ->scalarNode('partition_key_name')->isRequired()->defaultValue('pk')->end()
                                 ->scalarNode('sort_key_name')->isRequired()->defaultValue('sk')->end()
+                                ->scalarNode('object_type_attr')->isRequired()->defaultValue('objectType')->end()
                                 ->arrayNode('managed_items')
                                     ->prototype('scalar')->end()
                                 ->end()
